@@ -42,12 +42,11 @@ COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
-# Copy database
-RUN mkdir -p /app/db
-COPY --from=builder /app/db ./db
+# Copy entrypoint script
+COPY entrypoint.sh ./entrypoint.sh
 
-# Set proper permissions
-RUN chown -R nextjs:nodejs /app
+# Ensure db directory exists and set permissions
+RUN mkdir -p /app/db && chown -R nextjs:nodejs /app
 
 USER nextjs
 
@@ -56,5 +55,5 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# Start the application
-CMD ["bun", "server.js"]
+# Run db push on startup, then start the app
+CMD ["sh", "entrypoint.sh"]
