@@ -5,9 +5,8 @@ set -e
 mkdir -p /app/db
 
 # Run migrations to create/update the database schema
-# Prisma 6 no longer supports --skip-generate for db push
-# Client is already generated during image build
-bunx prisma db push
+# Pin Prisma CLI to v6 to stay compatible with current schema format
+bunx prisma@6.11.1 db push
 
 # Start the application
 exec bun server.js
