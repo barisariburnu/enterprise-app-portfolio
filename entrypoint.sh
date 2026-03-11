@@ -5,8 +5,9 @@ set -e
 mkdir -p /app/db
 
 # Run migrations to create/update the database schema
-# This is idempotent - safe to run on every startup
-bunx prisma db push --skip-generate
+# Prisma 6 no longer supports --skip-generate for db push
+# Client is already generated during image build
+bunx prisma db push
 
 # Start the application
 exec bun server.js
