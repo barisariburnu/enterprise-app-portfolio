@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, type FormEvent } from "react";
 import { Plus, Github, ExternalLink, Edit, Trash2, Search, Filter, FolderCode } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -210,7 +210,7 @@ export default function HomePage() {
   };
 
   // Handle submit
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
     try {
@@ -222,10 +222,22 @@ export default function HomePage() {
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "same-origin",
         body: JSON.stringify(formData),
       });
 
-      if (!response.ok) throw new Error(editingProject ? "Proje güncellenemedi" : "Proje eklenemedi");
+      if (!response.ok) {
+        let errorMessage = editingProject ? "Proje güncellenemedi" : "Proje eklenemedi";
+        try {
+          const errorData = await response.json();
+          if (typeof errorData?.error === "string" && errorData.error.length > 0) {
+            errorMessage = errorData.error;
+          }
+        } catch {
+          // ignore parse errors
+        }
+        throw new Error(errorMessage);
+      }
 
       toast({
         title: editingProject ? "Başarılı" : "Proje Eklendi",
@@ -235,10 +247,11 @@ export default function HomePage() {
       setIsDialogOpen(false);
       resetForm();
       fetchProjects();
-    } catch {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "İşlem sırasında bir hata oluştu.";
       toast({
         title: "Hata",
-        description: "İşlem sırasında bir hata oluştu.",
+        description: message,
         variant: "destructive",
       });
     }
@@ -325,11 +338,9 @@ export default function HomePage() {
                       if (!open) resetForm();
                     }}
                   >
-                    <DialogTrigger asChild>
-                      <Button className="gap-2 bg-slate-900 hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100">
-                        <Plus className="w-4 h-4" />
-                        Yeni Proje
-                      </Button>
+                    <DialogTrigger className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-slate-900 text-white shadow-xs hover:bg-slate-800 h-9 px-4 py-2 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100">
+                      <Plus className="w-4 h-4" />
+                      Yeni Proje
                     </DialogTrigger>
                     <DialogContent className="sm:max-w-[500px]">
                       <form onSubmit={handleSubmit}>

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import {
   getAdminSessionCookieName,
   isAdminCredentials,
@@ -6,6 +6,15 @@ import {
 } from "@/lib/admin";
 
 const ONE_DAY_IN_SECONDS = 60 * 60 * 24;
+
+function isSecureRequest(request: NextRequest) {
+  const forwardedProto = request.headers.get("x-forwarded-proto");
+  if (forwardedProto) {
+    return forwardedProto.split(",")[0].trim() === "https";
+  }
+
+  return request.nextUrl.protocol === "https:";
+}
 
 export async function GET(request: NextRequest) {
   return NextResponse.json({ isAdmin: isAdminRequest(request) });
@@ -32,7 +41,7 @@ export async function POST(request: NextRequest) {
       sameSite: "lax",
       path: "/",
       maxAge: ONE_DAY_IN_SECONDS,
-      secure: process.env.NODE_ENV === "production",
+      secure: isSecureRequest(request),
     });
 
     return response;
@@ -41,7 +50,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function DELETE() {
+export async function DELETE(request: NextRequest) {
   const response = NextResponse.json({ success: true, isAdmin: false });
   response.cookies.set({
     name: getAdminSessionCookieName(),
@@ -50,7 +59,7 @@ export async function DELETE() {
     sameSite: "lax",
     path: "/",
     maxAge: 0,
-    secure: process.env.NODE_ENV === "production",
+    secure: isSecureRequest(request),
   });
 
   return response;
