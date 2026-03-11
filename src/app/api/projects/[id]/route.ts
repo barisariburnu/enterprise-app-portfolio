@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { isAdminRequest } from "@/lib/admin";
 
 // GET - Tek proje getir
 export async function GET(
@@ -35,6 +36,13 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    if (!isAdminRequest(request)) {
+      return NextResponse.json(
+        { error: "Bu işlem için admin yetkisi gerekli" },
+        { status: 403 }
+      );
+    }
+
     const { id } = await params;
     const body = await request.json();
     const { name, description, githubUrl, liveUrl, status, tags } = body;
@@ -78,6 +86,13 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    if (!isAdminRequest(request)) {
+      return NextResponse.json(
+        { error: "Bu işlem için admin yetkisi gerekli" },
+        { status: 403 }
+      );
+    }
+
     const { id } = await params;
 
     const existingProject = await db.project.findUnique({

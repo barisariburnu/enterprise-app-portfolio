@@ -63,8 +63,13 @@ export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [deleteProjectId, setDeleteProjectId] = useState<string | null>(null);
+  const [adminUsername, setAdminUsername] = useState("");
+  const [adminPassword, setAdminPassword] = useState("");
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [authLoading, setAuthLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -94,8 +99,24 @@ export default function HomePage() {
     }
   };
 
+  const checkAdminSession = async () => {
+    try {
+      const response = await fetch("/api/admin/session");
+      if (!response.ok) {
+        setIsAdmin(false);
+        return;
+      }
+
+      const data = await response.json();
+      setIsAdmin(Boolean(data?.isAdmin));
+    } catch {
+      setIsAdmin(false);
+    }
+  };
+
   useEffect(() => {
     fetchProjects();
+    checkAdminSession();
   }, []);
 
   // Filter projects
@@ -135,6 +156,59 @@ export default function HomePage() {
     setIsDialogOpen(true);
   };
 
+  const handleAdminLogin = async () => {
+    if (!adminUsername || !adminPassword) {
+      toast({
+        title: "Eksik bilgi",
+        description: "Kullanıcı adı ve parola zorunludur.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setAuthLoading(true);
+      const response = await fetch("/api/admin/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: adminUsername, password: adminPassword }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Giriş başarısız");
+      }
+
+      setIsAdmin(true);
+      setIsLoginDialogOpen(false);
+      setAdminPassword("");
+      toast({ title: "Başarılı", description: "Giriş yapıldı." });
+    } catch {
+      setIsAdmin(false);
+      toast({
+        title: "Hata",
+        description: "Kullanıcı adı veya parola hatalı.",
+        variant: "destructive",
+      });
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleAdminLogout = async () => {
+    try {
+      setAuthLoading(true);
+      await fetch("/api/admin/session", { method: "DELETE" });
+      setIsAdmin(false);
+      setIsDialogOpen(false);
+      setEditingProject(null);
+      setDeleteProjectId(null);
+      setAdminPassword("");
+      toast({ title: "Bilgi", description: "Admin oturumu kapatıldı." });
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
   // Handle submit
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -145,7 +219,9 @@ export default function HomePage() {
 
       const response = await fetch(url, {
         method,
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(formData),
       });
 
@@ -215,111 +291,176 @@ export default function HomePage() {
               </div>
               <div>
                 <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
-                  Kurum Uygulamaları
+                  BUSKİ CBS Uygulamaları
                 </h1>
                 <p className="text-sm text-slate-500 dark:text-slate-400">
-                  Tüm projeler tek platformda
+                  Tüm projeler
                 </p>
               </div>
             </div>
 
-            <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) resetForm(); }}>
-              <DialogTrigger asChild>
-                <Button className="gap-2 bg-slate-900 hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100">
-                  <Plus className="w-4 h-4" />
-                  Yeni Proje
+            <div className="flex w-full sm:w-auto items-center gap-2">
+              {!isAdmin ? (
+                <Button
+                  type="button"
+                  onClick={() => setIsLoginDialogOpen(true)}
+                  className="bg-slate-900 hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100"
+                >
+                  Giriş Yap
                 </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[500px]">
-                <form onSubmit={handleSubmit}>
-                  <DialogHeader>
-                    <DialogTitle>{editingProject ? "Proje Düzenle" : "Yeni Proje Ekle"}</DialogTitle>
-                    <DialogDescription>
-                      {editingProject
-                        ? "Proje bilgilerini güncelleyin."
-                        : "Yeni proje bilgilerini girin."}
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="grid gap-4 py-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="name">Proje Adı *</Label>
-                      <Input
-                        id="name"
-                        value={formData.name}
-                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        placeholder="Uygulama adını girin"
-                        required
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="description">Açıklama *</Label>
-                      <Textarea
-                        id="description"
-                        value={formData.description}
-                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                        placeholder="Projenin ne işe yaradığını açıklayın"
-                        rows={3}
-                        required
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="grid gap-2">
-                        <Label htmlFor="githubUrl">GitHub URL</Label>
-                        <Input
-                          id="githubUrl"
-                          type="url"
-                          value={formData.githubUrl}
-                          onChange={(e) => setFormData({ ...formData, githubUrl: e.target.value })}
-                          placeholder="https://github.com/..."
-                        />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="liveUrl">Canlı URL</Label>
-                        <Input
-                          id="liveUrl"
-                          type="url"
-                          value={formData.liveUrl}
-                          onChange={(e) => setFormData({ ...formData, liveUrl: e.target.value })}
-                          placeholder="https://..."
-                        />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="grid gap-2">
-                        <Label htmlFor="status">Durum</Label>
-                        <Select
-                          value={formData.status}
-                          onValueChange={(value: ProjectStatus) =>
-                            setFormData({ ...formData, status: value })
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="ACTIVE">Aktif</SelectItem>
-                            <SelectItem value="DEVELOPMENT">Geliştirme</SelectItem>
-                            <SelectItem value="ARCHIVED">Arşiv</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="tags">Teknolojiler</Label>
-                        <Input
-                          id="tags"
-                          value={formData.tags}
-                          onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
-                          placeholder="React, Node.js, ..."
-                        />
-                      </div>
-                    </div>
+              ) : (
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleAdminLogout}
+                    disabled={authLoading}
+                  >
+                    {authLoading ? "Çıkış..." : "Çıkış Yap"}
+                  </Button>
+                  <Dialog
+                    open={isDialogOpen}
+                    onOpenChange={(open) => {
+                      setIsDialogOpen(open);
+                      if (!open) resetForm();
+                    }}
+                  >
+                    <DialogTrigger asChild>
+                      <Button className="gap-2 bg-slate-900 hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100">
+                        <Plus className="w-4 h-4" />
+                        Yeni Proje
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[500px]">
+                      <form onSubmit={handleSubmit}>
+                        <DialogHeader>
+                          <DialogTitle>{editingProject ? "Proje Düzenle" : "Yeni Proje Ekle"}</DialogTitle>
+                          <DialogDescription>
+                            {editingProject
+                              ? "Proje bilgilerini güncelleyin."
+                              : "Yeni proje bilgilerini girin."}
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-4">
+                          <div className="grid gap-2">
+                            <Label htmlFor="name">Proje Adı *</Label>
+                            <Input
+                              id="name"
+                              value={formData.name}
+                              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                              placeholder="Uygulama adını girin"
+                              required
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="description">Açıklama *</Label>
+                            <Textarea
+                              id="description"
+                              value={formData.description}
+                              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                              placeholder="Projenin ne işe yaradığını açıklayın"
+                              rows={3}
+                              required
+                            />
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="grid gap-2">
+                              <Label htmlFor="githubUrl">GitHub URL</Label>
+                              <Input
+                                id="githubUrl"
+                                type="url"
+                                value={formData.githubUrl}
+                                onChange={(e) => setFormData({ ...formData, githubUrl: e.target.value })}
+                                placeholder="https://github.com/..."
+                              />
+                            </div>
+                            <div className="grid gap-2">
+                              <Label htmlFor="liveUrl">Canlı URL</Label>
+                              <Input
+                                id="liveUrl"
+                                type="url"
+                                value={formData.liveUrl}
+                                onChange={(e) => setFormData({ ...formData, liveUrl: e.target.value })}
+                                placeholder="https://..."
+                              />
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="grid gap-2">
+                              <Label htmlFor="status">Durum</Label>
+                              <Select
+                                value={formData.status}
+                                onValueChange={(value: ProjectStatus) =>
+                                  setFormData({ ...formData, status: value })
+                                }
+                              >
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="ACTIVE">Aktif</SelectItem>
+                                  <SelectItem value="DEVELOPMENT">Geliştirme</SelectItem>
+                                  <SelectItem value="ARCHIVED">Arşiv</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="grid gap-2">
+                              <Label htmlFor="tags">Teknolojiler</Label>
+                              <Input
+                                id="tags"
+                                value={formData.tags}
+                                onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
+                                placeholder="React, Node.js, ..."
+                              />
+                            </div>
+                          </div>
+                        </div>
+                        <DialogFooter>
+                          <Button type="submit" className="bg-slate-900 hover:bg-slate-800 dark:bg-white dark:text-slate-900">
+                            {editingProject ? "Güncelle" : "Ekle"}
+                          </Button>
+                        </DialogFooter>
+                      </form>
+                    </DialogContent>
+                  </Dialog>
+                </>
+              )}
+            </div>
+
+            <Dialog open={isLoginDialogOpen} onOpenChange={setIsLoginDialogOpen}>
+              <DialogContent className="sm:max-w-[420px]">
+                <DialogHeader>
+                  <DialogTitle>Giriş Yap</DialogTitle>
+                  <DialogDescription>
+                    Yönetim işlemleri için admin hesabınızla giriş yapın.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-2">
+                  <div className="grid gap-2">
+                    <Label htmlFor="admin-username">Kullanıcı Adı</Label>
+                    <Input
+                      id="admin-username"
+                      value={adminUsername}
+                      onChange={(e) => setAdminUsername(e.target.value)}
+                      placeholder="admin"
+                    />
                   </div>
-                  <DialogFooter>
-                    <Button type="submit" className="bg-slate-900 hover:bg-slate-800 dark:bg-white dark:text-slate-900">
-                      {editingProject ? "Güncelle" : "Ekle"}
-                    </Button>
-                  </DialogFooter>
-                </form>
+                  <div className="grid gap-2">
+                    <Label htmlFor="admin-password">Parola</Label>
+                    <Input
+                      id="admin-password"
+                      type="password"
+                      value={adminPassword}
+                      onChange={(e) => setAdminPassword(e.target.value)}
+                      placeholder="••••••••"
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button type="button" onClick={handleAdminLogin} disabled={authLoading}>
+                    {authLoading ? "Giriş..." : "Giriş Yap"}
+                  </Button>
+                </DialogFooter>
               </DialogContent>
             </Dialog>
           </div>
@@ -411,7 +552,22 @@ export default function HomePage() {
                 : "İlk projenizi ekleyerek başlayın."}
             </p>
             {!searchQuery && statusFilter === "all" && (
-              <Button onClick={() => setIsDialogOpen(true)} className="gap-2">
+              <Button
+                onClick={() => {
+                  if (!isAdmin) {
+                    toast({
+                      title: "Yetki gerekli",
+                      description: "Proje eklemek için admin girişi yapmalısınız.",
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+
+                  setIsDialogOpen(true);
+                }}
+                disabled={!isAdmin}
+                className="gap-2"
+              >
                 <Plus className="w-4 h-4" />
                 Proje Ekle
               </Button>
@@ -486,8 +642,20 @@ export default function HomePage() {
                     <Button
                       variant="ghost"
                       size="sm"
+                      disabled={!isAdmin}
                       className="flex-1 gap-1 text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
-                      onClick={() => openEditDialog(project)}
+                      onClick={() => {
+                        if (!isAdmin) {
+                          toast({
+                            title: "Yetki gerekli",
+                            description: "Düzenleme için admin girişi yapmalısınız.",
+                            variant: "destructive",
+                          });
+                          return;
+                        }
+
+                        openEditDialog(project);
+                      }}
                     >
                       <Edit className="w-4 h-4" />
                       Düzenle
@@ -495,8 +663,20 @@ export default function HomePage() {
                     <Button
                       variant="ghost"
                       size="sm"
+                      disabled={!isAdmin}
                       className="flex-1 gap-1 text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
-                      onClick={() => setDeleteProjectId(project.id)}
+                      onClick={() => {
+                        if (!isAdmin) {
+                          toast({
+                            title: "Yetki gerekli",
+                            description: "Silme işlemi için admin girişi yapmalısınız.",
+                            variant: "destructive",
+                          });
+                          return;
+                        }
+
+                        setDeleteProjectId(project.id);
+                      }}
                     >
                       <Trash2 className="w-4 h-4" />
                       Sil
@@ -512,7 +692,7 @@ export default function HomePage() {
       {/* Footer */}
       <footer className="border-t border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md">
         <div className="container mx-auto px-4 py-4 text-center text-sm text-slate-500 dark:text-slate-400">
-          Kurum Uygulamaları Portföyü © {new Date().getFullYear()}
+          BUSKİ CBS Uygulamaları Portföyü © {new Date().getFullYear()}
         </div>
       </footer>
 

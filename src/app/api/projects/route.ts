@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { isAdminRequest } from "@/lib/admin";
 
 // GET - Tüm projeleri getir
 export async function GET() {
@@ -20,6 +21,13 @@ export async function GET() {
 // POST - Yeni proje ekle
 export async function POST(request: NextRequest) {
   try {
+    if (!isAdminRequest(request)) {
+      return NextResponse.json(
+        { error: "Bu işlem için admin yetkisi gerekli" },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
     const { name, description, githubUrl, liveUrl, status, tags } = body;
 
