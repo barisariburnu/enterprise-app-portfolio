@@ -1,5 +1,5 @@
 # Stage 1: Dependencies
-FROM oven/bun:1 AS deps
+FROM oven/bun:1@sha256:1d22548f177f4ff38e0c15baa3c2c46c6c2060ba2d1bc573bb4720b407548f1d AS deps
 WORKDIR /app
 
 # Copy package files
@@ -10,7 +10,7 @@ COPY prisma ./prisma/
 RUN bun install
 
 # Stage 2: Builder
-FROM oven/bun:1 AS builder
+FROM oven/bun:1@sha256:1d22548f177f4ff38e0c15baa3c2c46c6c2060ba2d1bc573bb4720b407548f1d AS builder
 WORKDIR /app
 
 # Copy dependencies
@@ -25,7 +25,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN bun run build
 
 # Stage 3: Runner
-FROM oven/bun:1 AS runner
+FROM oven/bun:1@sha256:1d22548f177f4ff38e0c15baa3c2c46c6c2060ba2d1bc573bb4720b407548f1d AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production

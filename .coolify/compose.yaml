@@ -1,0 +1,67 @@
+# Coolify: Base Directory /, Compose Location /.coolify/compose.yaml, RAW mode.
+services:
+  app:
+    command: null
+    entrypoint: null
+    environment:
+      DATABASE_URL: ${CBS_APP_DATABASE_URL}
+      ADMIN_USERNAME: ${CBS_APP_ADMIN_USERNAME}
+      ADMIN_PASSWORD: ${CBS_APP_ADMIN_PASSWORD}
+      NODE_ENV: ${CBS_APP_NODE_ENV}
+      PATH: ${CBS_APP_PATH}
+      BUN_RUNTIME_TRANSPILER_CACHE_PATH: ${CBS_APP_BUN_RUNTIME_TRANSPILER_CACHE_PATH}
+      BUN_INSTALL_BIN: ${CBS_APP_BUN_INSTALL_BIN}
+      NEXT_TELEMETRY_DISABLED: ${CBS_APP_NEXT_TELEMETRY_DISABLED}
+      PORT: ${CBS_APP_PORT}
+      HOSTNAME: ${CBS_APP_HOSTNAME}
+    healthcheck:
+      test:
+      - CMD
+      - bun
+      - -e
+      - fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))
+      interval: 30s
+      timeout: 10s
+      start_period: 90s
+      retries: 5
+    ports:
+    - 2328:3000
+    restart: unless-stopped
+    user: 0:0
+    volumes:
+    - type: bind
+      source: ${COOLIFY_DATA_ROOT}/db
+      target: /app/db
+      bind:
+        create_host_path: false
+    - type: bind
+      source: ${COOLIFY_DATA_ROOT}/prisma-db
+      target: /app/prisma/db
+      bind:
+        create_host_path: false
+    image: coolify-local/enterprise-app-portfolio:${SOURCE_COMMIT:-latest}
+    pull_policy: never
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+    container_name: app-${COOLIFY_RESOURCE_UUID:?}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    labels:
+    - traefik.docker.network=${COOLIFY_RESOURCE_UUID}
+    - traefik.enable=true
+    - traefik.http.middlewares.gzip-sse.compress.excludedcontenttypes=text/event-stream
+    - traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https
+    - traefik.http.routers.http-0-${COOLIFY_RESOURCE_UUID}-app-d2a5.entryPoints=http
+    - traefik.http.routers.http-0-${COOLIFY_RESOURCE_UUID}-app-d2a5.middlewares=gzip-sse
+    - traefik.http.routers.http-0-${COOLIFY_RESOURCE_UUID}-app-d2a5.rule=Host(`${COOLIFY_PUBLIC_HOST:?}`) && PathPrefix(`/`)
+    - traefik.http.routers.http-0-${COOLIFY_RESOURCE_UUID}-app-d2a5.service=http-0-${COOLIFY_RESOURCE_UUID}-app-d2a5
+    - traefik.http.services.http-0-${COOLIFY_RESOURCE_UUID}-app-d2a5.loadbalancer.server.port=3000
+name: ${COOLIFY_RESOURCE_UUID:?}
+networks:
+  default:
+    external: true
+    name: ${COOLIFY_RESOURCE_UUID:?}
