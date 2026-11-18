@@ -50,6 +50,9 @@ RUN mkdir -p /app/db && chown -R nextjs:nodejs /app
 
 USER nextjs
 
+COPY --from=builder /app/src/lib/monitoring.cjs ./src/lib/monitoring.cjs
+COPY --from=builder /app/scripts/monitoring-check.mjs ./scripts/monitoring-check.mjs
+COPY --from=builder /app/node_modules/@sentry ./node_modules/@sentry
 EXPOSE 3000
 
 ENV PORT=3000
@@ -57,3 +60,9 @@ ENV HOSTNAME="0.0.0.0"
 
 # Run db push on startup, then start the app
 CMD ["sh", "entrypoint.sh"]
+
+# Immutable runtime identity is added after expensive install/build layers.
+ARG MONITORING_SOURCE_REVISION
+RUN test "${#MONITORING_SOURCE_REVISION}" -eq 40 && case "$MONITORING_SOURCE_REVISION" in *[!0-9a-f]*) exit 35 ;; esac
+ENV SENTRY_RELEASE=enterprise-app-portfolio@${MONITORING_SOURCE_REVISION}
+LABEL org.opencontainers.image.revision="${MONITORING_SOURCE_REVISION}"

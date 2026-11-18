@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/monitoring.cjs'
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { isAdminRequest } from "@/lib/admin";
@@ -22,7 +23,7 @@ export async function GET(
 
     return NextResponse.json(project);
   } catch (error) {
-    console.error("Proje yüklenirken hata:", error);
+    reportError('OP_APP_API_PROJECTS_ID_ROUTE_TS_1', error);
     return NextResponse.json(
       { error: "Proje yüklenemedi" },
       { status: 500 }
@@ -72,7 +73,7 @@ export async function PUT(
 
     return NextResponse.json(project);
   } catch (error) {
-    console.error("Proje güncellenirken hata:", error);
+    reportError('OP_APP_API_PROJECTS_ID_ROUTE_TS_2', error);
     return NextResponse.json(
       { error: "Proje güncellenemedi" },
       { status: 500 }
@@ -112,7 +113,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Proje silinirken hata:", error);
+    reportError('OP_APP_API_PROJECTS_ID_ROUTE_TS_3', error);
     return NextResponse.json(
       { error: "Proje silinemedi" },
       { status: 500 }

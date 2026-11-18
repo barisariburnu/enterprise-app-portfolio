@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/monitoring.cjs';
 import { NextResponse, type NextRequest } from "next/server";
 import {
   getAdminSessionCookieName,
@@ -45,7 +46,8 @@ export async function POST(request: NextRequest) {
     });
 
     return response;
-  } catch {
+  } catch (error) {
+    reportError('ADMIN_SESSION_FAILURE', error);
     return NextResponse.json({ error: "Giriş işlemi başarısız" }, { status: 400 });
   }
 }

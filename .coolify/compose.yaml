@@ -4,6 +4,8 @@ services:
     command: null
     entrypoint: null
     environment:
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
       DATABASE_URL: ${CBS_APP_DATABASE_URL}
       ADMIN_USERNAME: ${CBS_APP_ADMIN_USERNAME}
       ADMIN_PASSWORD: ${CBS_APP_ADMIN_PASSWORD}
@@ -39,7 +41,7 @@ services:
       target: /app/prisma/db
       bind:
         create_host_path: false
-    image: coolify-local/enterprise-app-portfolio:${SOURCE_COMMIT:-latest}
+    image: coolify-local/enterprise-app-portfolio:latest
     pull_policy: never
     logging:
       driver: json-file
