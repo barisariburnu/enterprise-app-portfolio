@@ -30,6 +30,9 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
+    if (body === null || typeof body !== 'object' || Array.isArray(body)) {
+      return NextResponse.json({ error: 'Geçersiz istek' }, { status: 400 });
+    }
     const { name, description, githubUrl, liveUrl, status, tags } = body;
 
     if (!name || !description) {
